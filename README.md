@@ -14,6 +14,16 @@ Analysis of **530,732 public-investment projects** from Colombia's national plan
 | 4 | **Within SGR, longer planned projects finish *more* often** (51% for 1–3 yrs, 87% for 4–10, 91% for >10, cohort started ≤2021). Counting only finished projects would suggest the opposite (survivorship bias). | `outputs/05_sgr_finished_by_duration.png` |
 | 5 | **Cost per beneficiary can't support an efficiency ranking:** the column contains impossible values (up to 48 billion in a country of ~52 million) and spans ~6 orders of magnitude even after cleaning. | notebook 01 §5, notebook 02 §7 |
 
+### The two charts that matter most
+
+**Finished projects only exist for one funding source (SGR)**, so "% finished" over the whole registry is meaningless:
+
+![Status mix by funding source](outputs/04_pipeline_by_source.png)
+
+**Within SGR, longer planned projects finish *more* often**, the opposite of what you get by looking only at finished projects (survivorship bias):
+
+![Share finished by planned duration](outputs/05_sgr_finished_by_duration.png)
+
 ## What changed from version 1
 Version 1 ranked sectors by "efficiency" = beneficiaries per peso and concluded that short projects are the most successful. Checking the raw data showed both were artifacts (typos in beneficiaries, a unit error, and survivorship bias). Version 2 documents each issue and fixes it.
 
