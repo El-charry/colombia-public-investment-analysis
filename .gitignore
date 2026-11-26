@@ -1,0 +1,10 @@
+data/raw/
+data/processed/
+venv/
+.venv/
+__pycache__/
+.ipynb_checkpoints/
+*.zip
+*.csv
+!outputs/*.csv
+docs/STUDY_GUIDE_ES.md

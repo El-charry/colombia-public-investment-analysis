@@ -1,149 +1,50 @@
-# 📊 Análisis de Proyectos de Inversión Pública en Colombia
+# Colombian Public Investment Projects — what the registry can and cannot tell us
 
-###  **Autor:** Diego  
-###  **Herramientas utilizadas:** Python (Pandas, Plotly, Matplotlib, Numpy)  
-###  **Versión:** Proyecto completo — *Proyecto_mejorado2.ipynb*
+*[Leer en español](#español)*
 
----
+Analysis of **530,732 public-investment projects** from Colombia's national planning department (DNP, *Banco de Proyectos*). The main finding is as much about data quality as about investment: several "obvious" conclusions you can draw from this dataset are artifacts.
 
-##  **1. Descripción general**
+## Key findings
 
-Este proyecto analiza los **proyectos de inversión pública en Colombia**, con el propósito de comprender cómo se distribuyen entre los diferentes **Planes Nacionales de Desarrollo (PND)**, su eficiencia en términos de **inversión y beneficiarios**, y qué porcentaje logra **finalizarse** dentro de los plazos y presupuestos esperados.
+| # | Finding | Evidence |
+|---|---|---|
+| 1 | **Status is not comparable across funding sources.** "Finished" exists only for SGR (royalties), so "% of projects finished" over the whole file is meaningless. | `outputs/04_pipeline_by_source.png` |
+| 2 | **Value is extremely concentrated.** The top 1% of valued projects hold ~75% of total value; the median project is ~423 M COP vs a mean of ~12,900 M COP. | `outputs/02_value_distribution.png` |
+| 3 | **55% of projects have no value recorded** (zero ≠ free). They are treated as missing. | notebook 01 |
+| 4 | **Within SGR, longer planned projects finish *more* often** (51% for 1–3 yrs, 87% for 4–10, 91% for >10, cohort started ≤2021). Counting only finished projects would suggest the opposite (survivorship bias). | `outputs/05_sgr_finished_by_duration.png` |
+| 5 | **Cost per beneficiary can't support an efficiency ranking:** the column contains impossible values (up to 48 billion in a country of ~52 million) and spans ~6 orders of magnitude even after cleaning. | notebook 01 §5, notebook 02 §7 |
 
-La motivación surge de una pregunta clave:  
-> **¿En qué medida los proyectos públicos logran cumplir sus objetivos y transformar la inversión en resultados reales para la población?**
+## What changed from version 1
+Version 1 ranked sectors by "efficiency" = beneficiaries per peso and concluded that short projects are the most successful. Checking the raw data showed both were artifacts (typos in beneficiaries, a unit error, and survivorship bias). Version 2 documents each issue and fixes it.
 
----
+## Structure
+```
+notebooks/01_data_cleaning.ipynb   data understanding, quality issues, documented decisions
+notebooks/02_analysis.ipynb        question → method → result → limit, for each analysis
+notebooks/03_sql_duckdb.ipynb      key results reproduced in SQL (CTEs, window functions)
+src/dnp_utils.py                   loading + cleaning helpers
+scripts/download_data.py           downloads the dataset from datos.gov.co
+outputs/                           figures
+```
 
-##  **2. Objetivos del análisis**
+## Reproduce
+```bash
+pip install -r requirements.txt
+python scripts/download_data.py        # ~320 MB, saved with today's date
+jupyter lab                            # run notebooks 01 → 02 → 03
+```
 
-1. Analizar la **distribución de los proyectos** entre los distintos Planes Nacionales de Desarrollo.  
-2. Evaluar la relación entre **inversión total**, **cantidad de proyectos** y **beneficiarios**.  
-3. Calcular la **eficiencia** de los proyectos (beneficiarios por millón invertido).  
-4. Enfocar el estudio en los **proyectos finalizados**, identificando:  
-   - Su nivel de eficiencia (eficiente vs. con sobrecostos).  
-   - Su **tiempo de ejecución** (corto, medio o largo plazo).  
-   - Los **sectores con más impacto** y beneficiarios.
+## Limitations
+Values are undocumented in currency/units (assumed nominal COP, not inflation-adjusted); the meaning of *Total* vs *Vigente* value is not documented; analyses are descriptive associations, not causal claims.
 
----
-
-##  **3. Proceso analítico**
-
-### 🔹 Limpieza y preparación
-- Estandarización de nombres y tipos de datos.  
-- Clasificación del estado de cada proyecto en tres grupos:
-  - **Planeación/Evaluación**
-  - **Ejecución**
-  - **Finalizado**
-
-### 🔹 Cálculo de métricas
-- **Eficiencia:** beneficiarios por millón invertido.  
-- **Clasificación de eficiencia:**  
-  - *Eficiente:* si el valor total ≤ valor vigente.  
-  - *Sobrecosto:* si el valor total > valor vigente.  
-- **Tiempo de ejecución:** calculado a partir de columnas `Inicio` y `Fin`, y clasificado en:
-  - Corto (1–3 años)  
-  - Medio (4–10 años)  
-  - Largo (>10 años)
+**Data:** [DNP-proyectos_datos_basicos, datos.gov.co](https://www.datos.gov.co/en/Econom-a-y-Finanzas/DNP-proyectos_datos_basicos/cf9k-55fw), CC BY-SA 4.0, snapshot 2026-11-25. **Tools:** Python, pandas, DuckDB/SQL, matplotlib.
 
 ---
 
-##  **4. Visualizaciones clave**
+## Español
 
-###  **Distribución de proyectos por PND**
-Tres gráficos tipo dona comparan la proporción de proyectos en planeación, ejecución y finalización durante los periodos:
-- 2014–2018  
-- 2019–2022  
-- 2022–2026  
+Análisis de **530.732 proyectos de inversión pública** del Departamento Nacional de Planeación (DNP). El hallazgo principal trata tanto de calidad de datos como de inversión: varias conclusiones "obvias" de este dataset son artefactos.
 
- *Insight:* Los proyectos finalizados representan en promedio **solo el 5%** del total.
+**Hallazgos:** (1) el estado "Terminado" solo existe en SGR, así que "% finalizados" global no significa nada; (2) el 1% de proyectos con valor concentra ~75% del valor total; (3) el 55% de proyectos no tiene valor registrado; (4) en SGR los proyectos de mayor duración planeada se terminan *más* (51% / 87% / 91%), lo contrario de lo que sugiere mirar solo los terminados; (5) la columna de beneficiarios tiene valores imposibles, por lo que no sirve para un ranking de eficiencia.
 
- <p align="center">
-  <img src="graficos/distribucion_pnd.png" width="85%" alt="Distribución de proyectos por Plan Nacional de Desarrollo">
-</p>
-
----
-
-###  **Relación inversión – beneficiarios – cantidad de proyectos**
-Gráfico burbuja (log-log) que muestra cómo los sectores se comportan frente a la inversión y el número de beneficiarios.
-
-📊 *Insight:* Sectores con alta inversión, como *Transporte* o *Educación*, no siempre generan el mayor número de beneficiarios.
-
----
-
-###  **Top 5 por inversión vs. eficiencia**
-Comparativo entre:
-- Los **sectores con mayor inversión total**.  
-- Los **sectores más eficientes** en beneficiarios por millón invertido.
-
- *Insight:* La eficiencia no depende del monto. Sectores como *Organismos de Control* o *Rama Judicial* destacan por lograr más con menos.
-
----
-
-###  **Eficiencia de proyectos finalizados**
-Gráfico de pastel que muestra la proporción de proyectos:
-- **Eficientes (88%)**  
-- **Con sobrecosto (12%)**
-
- *Insight:* La mayoría de los proyectos que finalizan lo hacen dentro del presupuesto.
-
----
-
-###  **Horizonte de ejecución**
-Clasificación de los proyectos finalizados según su duración:
-- Corto (1–3 años)  
-- Medio (4–10 años)  
-- Largo (>10 años)
-
- *Insight:* Más del 70% de los proyectos finalizados pertenecen al grupo de corto plazo.
-
----
-
-###  **Relación costo – beneficiarios – cantidad (solo finalizados)**
-Burbuja logarítmica similar a la anterior, pero enfocada exclusivamente en proyectos finalizados, mostrando el comportamiento real de los sectores que sí cumplieron su ejecución.
-
----
-
-###  **Top 5 sectores con más proyectos, inversión y beneficiarios**
-Comparación final:
-1. **Top 5 por cantidad de proyectos.**  
-2. **Top 5 por valor total ejecutado (en billones).**  
-3. **Top 5 por beneficiarios alcanzados (en millones).**
-
-📊 *Insight:*  
-- *Transporte* lidera en inversión y cantidad de proyectos.  
-- *Ciencia, Tecnología e Innovación* se destaca por número de beneficiarios.
-
----
-
-##  **5. Conclusiones**
-
-- Solo una pequeña fracción de los proyectos alcanza la fase de finalización (**≈5%**).  
-- Los proyectos finalizados muestran **alta eficiencia (88%)**, indicando una correcta ejecución presupuestal.  
-- Los **plazos cortos** son los más exitosos en términos de finalización.  
-- La relación entre **inversión y beneficiarios** demuestra que **mayor gasto no siempre significa mayor impacto.**  
-- Sectores como *Transporte* y *Educación* concentran la inversión, pero otros como *Ciencia y Tecnología* generan mayor valor social relativo.
-
----
-
-##  **6. Tecnologías empleadas**
-
-- **Python:** análisis, limpieza y visualización.  
-- **Pandas & Numpy:** procesamiento y agregación de datos.  
-- **Plotly Express:** visualizaciones interactivas.  
-- **Matplotlib:** gráficos complementarios.  
-- **Jupyter Notebook (VSCode):** desarrollo y narrativa del análisis.
-
----
-
-##  **7. Próximos pasos**
-- Integrar datos temporales de avance físico-financiero.  
-- Analizar correlación entre tipo de proyecto, ubicación y eficiencia.  
-- Explorar predicciones de éxito usando Machine Learning.
-
----
-
-
-- **Fuente de datos:** Departamento Nacional de Planeación (DNP).  
-- **Autor:** *Diego – Analista de Datos e Ingeniero Industrial.*  
-- **Uso:** Proyecto educativo y exploratorio.
+**Cómo reproducir:** `pip install -r requirements.txt`, `python scripts/download_data.py` y ejecutar los notebooks 01 → 02 → 03.
